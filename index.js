@@ -16,6 +16,7 @@ const taskManager = {
     }
 
     const currentColumnIndex = columns.indexOf(task.column);
+
     if (currentColumnIndex === -1 || currentColumnIndex === columns.length - 1) {
       console.log(`Task "${taskName}" is already in the last column.`);
       return;
@@ -35,6 +36,7 @@ const taskManager = {
 
 taskManager.addTask("Task 1");
 taskManager.addTask("Task 2");
+
 taskManager.displayTasks();
 
 taskManager.moveTask("Task 1");
@@ -42,5 +44,6 @@ taskManager.displayTasks();
 
 taskManager.moveTask("Task 1");
 taskManager.moveTask("Task 1");
-taskManager.moveTask("Task 1"); s
+taskManager.moveTask("Task 1");
+
 taskManager.displayTasks();
