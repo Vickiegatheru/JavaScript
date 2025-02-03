@@ -1,15 +1,18 @@
-<html> 
-<body> 
-<script type="text/javascript"> 
-var firstname; 
-firstname="Welcome"; 
-document.write(firstname); 
-document.write("<br />"); 
-firstname="XYZ"; 
-document.write(firstname); 
-</script> 
-<p>The script above declares a variable, 
-assigns a value to it, displays the value, change the value, 
-and displays the value again.</p> 
-</body> 
+<html lang="en">
+<head>
+    
+    <title>Introduction To objects</title>
+    <script type="text/javascript"> 
+    function buttonClick ()
+    {
+        document.getElementById("heading2")
+        .innerHTML="Telusko Learnings";
+        //alert("Button Clicked");
+    }
+</script>
+</head>
+<body>
+    <button onclick="buttonClick()">Click Me</button>
+    <h2 id="heading2">Some Random Text</h2>
+</body>
 </html>
