@@ -3,16 +3,18 @@
     
     <title>Introduction To objects</title>
     <script type="text/javascript"> 
-    function buttonClick ()
+    function fn1()
     {
-        document.getElementById("heading2")
-        .innerHTML="Telusko Learnings";
-        //alert("Button Clicked");
+        var str = document.getElementById("text1").value; 
+        alert('Value inside the text box is:"+str);   
     }
+
+   
 </script>
 </head>
 <body>
-    <button onclick="buttonClick()">Click Me</button>
-    <h2 id="heading2">Some Random Text</h2>
+    <input id="text1" placeholder="Username">
+    <br>
+    <button onclick="fn1()" id="btn1"> Click me </button>
 </body>
 </html>
