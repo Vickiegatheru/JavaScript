@@ -10,7 +10,7 @@ let draggedTask = null;
 document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('add-task-btn').onclick = addTask;
   
-  // Column event listeners
+  
   ['dragover', 'dragenter', 'dragleave', 'drop'].forEach(event => {
     document.querySelectorAll('.column').forEach(column => {
       column.addEventListener(event, columnHandlers[event]);
