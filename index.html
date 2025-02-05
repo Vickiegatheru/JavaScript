@@ -1,20 +1,35 @@
+<!DOCTYPE html>
 <html lang="en">
 <head>
-    
-    <title>Introduction To objects</title>
-    <script type="text/javascript"> 
-    function fn1()
-    {
-        var str = document.getElementById("text1").value; 
-        alert('Value inside the text box is:"+str);   
-    }
-
-   
-</script>
+  
+  <title>Project Management</title>
+  <link rel="stylesheet" href="Untitled-1.css">
 </head>
 <body>
-    <input id="text1" placeholder="Username">
-    <br>
-    <button onclick="fn1()" id="btn1"> Click me </button>
+  <h1>Project Management </h1>
+  <div class="board">
+    <div class="column" id="todo">
+      <h2>To Do</h2>
+      <div class="tasks"></div>
+    </div>
+    <div class="column" id="in-progress">
+      <h2>In Progress</h2>
+      <div class="tasks"></div>
+    </div>
+    <div class="column" id="blocked">
+      <h2>Blocked</h2>
+      <div class="tasks"></div>
+    </div>
+    <div class="column" id="done">
+      <h2>Done</h2>
+      <div class="tasks"></div>
+    </div>
+  </div>
+  <div class="add-task">
+    <input type="text" id="task-input" placeholder="Enter a new task">
+    <button id="add-task-btn">Add Task</button>
+  </div>
+
+  <script src="Untitled-1.js"></script>
 </body>
 </html>

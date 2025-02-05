@@ -1,49 +1,81 @@
-const columns = ["todo", "in progress", "blocked", "done"];
-
-const taskManager = {
-  tasks: [],
-
-  addTask(taskName) {
-    this.tasks.push({ name: taskName, column: "todo" });
-    console.log(`Task "${taskName}" added to the "todo" column.`);
-  },
-
-  moveTask(taskName) {
-    const task = this.tasks.find((t) => t.name === taskName);
-    if (!task) {
-      console.log(`Task "${taskName}" not found.`);
-      return;
-    }
-
-    const currentColumnIndex = columns.indexOf(task.column);
-
-    if (currentColumnIndex === -1 || currentColumnIndex === columns.length - 1) {
-      console.log(`Task "${taskName}" is already in the last column.`);
-      return;
-    }
-
-    task.column = columns[currentColumnIndex + 1];
-    console.log(`Task "${taskName}" moved to the "${task.column}" column.`);
-  },
-
-  displayTasks() {
-    console.log("Current tasks:");
-    this.tasks.forEach((task) => {
-      console.log(`- ${task.name}: ${task.column}`);
-    });
-  },
+const Tasks = {
+  'todo': ['in-progress'],
+  'in-progress': ['blocked', 'done'],
+  'blocked': ['in-progress'],
+  'done': []
 };
 
-taskManager.addTask("Task 1");
-taskManager.addTask("Task 2");
+let draggedTask = null;
 
-taskManager.displayTasks();
 
-taskManager.moveTask("Task 1");
-taskManager.displayTasks();
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('add-task-btn').addEventListener('click', addTask);
+  
+  document.querySelectorAll('.column').forEach(column => {
+    column.addEventListener('dragover', dragOver);
+    column.addEventListener('dragenter', dragEnter);
+    column.addEventListener('dragleave', dragLeave);
+    column.addEventListener('drop', dragDrop);
+  });
+});
 
-taskManager.moveTask("Task 1");
-taskManager.moveTask("Task 1");
-taskManager.moveTask("Task 1");
+function addTask() {
+  const taskInput = document.getElementById('task-input');
+  const taskText = taskInput.value.trim();
 
-taskManager.displayTasks();
+  if (!taskText) {
+    alert('Please enter a task!');
+    return;
+  }
+
+  const task = document.createElement('div');
+  task.className = 'task';
+  task.draggable = true;
+  task.textContent = taskText;
+
+  task.addEventListener('dragstart', dragStart);
+  task.addEventListener('dragend', dragEnd);
+
+  document.querySelector('#todo .tasks').appendChild(task);
+  taskInput.value = '';
+}
+
+function dragStart() {
+  draggedTask = this;
+  this.style.opacity = '0.4';
+}
+
+function dragEnd() {
+  draggedTask = null;
+  this.style.opacity = '1';
+}
+
+function dragOver(e) {
+  e.preventDefault();
+}
+
+function dragEnter(e) {
+  if (!draggedTask) return;
+  
+  const currentColumn = draggedTask.parentElement.parentElement.id;
+  const targetColumn = this.id;
+
+  if (Tasks[currentColumn].includes(targetColumn)) {
+    this.classList.add('allowed-drop');
+  }
+}
+
+function dragLeave(e) {
+  this.classList.remove('allowed-drop');
+}
+
+function dragDrop(e) {
+  this.classList.remove('allowed-drop');
+  
+  const currentColumn = draggedTask.parentElement.parentElement.id;
+  const targetColumn = this.id;
+
+  if (Tasks[currentColumn].includes(targetColumn)) {
+    this.querySelector('.tasks').appendChild(draggedTask);
+  }
+}
