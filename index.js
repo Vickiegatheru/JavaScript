@@ -1,81 +1,73 @@
-const Tasks = {
-  todo: ['in-progress'],
-  'in-progress': ['blocked', 'done'],
-  blocked: ['in-progress'],
-  done: [] 
-};
+const API_URL = 'http://localhost:3001/api';
 
-let draggedTask = null;
-
-document.addEventListener('DOMContentLoaded', () => {
-  document.getElementById('add-task-btn').onclick = addTask;
-
-  setupDragHandlers();
-});
-
-function setupDragHandlers() {
-  const dragEvents = ['dragover', 'dragenter', 'dragleave', 'drop'];
-  
-  document.querySelectorAll('.column').forEach(column => {
-    dragEvents.forEach(eventType => {
-      column.addEventListener(eventType, function(event) {
-        columnHandlers[eventType].call(this, event);
-      });
+async function loadTasks() {
+  try {
+    const response = await fetch(`${API_URL}/tasks`);
+    const tasks = await response.json();
+    
+    // Clear existing tasks
+    document.querySelectorAll('.tasks').forEach(container => {
+      container.innerHTML = '';
     });
-  });
+    
+    // Render tasks
+    tasks.forEach(task => {
+      renderTask(task.title, task.column_id, task.id);
+    });
+  } catch (error) {
+    console.error('Error loading tasks:', error);
+  }
 }
 
-const columnHandlers = {
-  dragover: function(e) {
-    e.preventDefault(); 
-  },
-
-  dragenter: function(e) {
-    if (!draggedTask) return;
-    
-    const originalColumn = draggedTask.parentElement.parentElement.id;
-    
-    if (Tasks[originalColumn].includes(this.id)) {
-      this.classList.add('allowed-drop');
-    }
-  },
-
-  dragleave: function(e) {
-    this.classList.remove('allowed-drop');
-  },
-
-  drop: function(e) {
-    this.classList.remove('allowed-drop');
-    
-    const originalColumn = draggedTask.parentElement.parentElement.id;
-    
-    if (Tasks[originalColumn].includes(this.id)) {
-      this.querySelector('.tasks').append(draggedTask);
-    }
-  }
-};
-
-function addTask() {
+async function addTask() {
   const input = document.getElementById('task-input');
   const taskText = input.value.trim();
 
   if (!taskText) return alert('Please enter a task!');
 
-  const task = document.createElement('div');
-  task.className = 'task';
-  task.draggable = true;
-  task.textContent = taskText;
-
-  task.ondragstart = function() {
-    draggedTask = this;
-    this.style.opacity = '0.4';
-  };
-
-  task.ondragend = function() {
-    draggedTask = null;
-    this.style.opacity = '1';
-  };
-
-  document.querySelector('#todo .tasks').append(task);
-  input.value = ''; 
+  try {
+    const response = await fetch(`${API_URL}/tasks`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title: taskText })
+    });
+    
+    const newTask = await response.json();
+    renderTask(taskText, 'todo', newTask.id);
+    input.value = '';
+  } catch (error) {
+    console.error('Error adding task:', error);
+  }
 }
+
+// Update your drop handler
+const columnHandlers = {
+  // ... other handlers ...
+  drop: async function(e) {
+    this.classList.remove('allowed-drop');
+    
+    const originalColumn = draggedTask.parentElement.parentElement.id;
+    const taskId = draggedTask.dataset.id;
+    
+    if (Tasks[originalColumn].includes(this.id)) {
+      try {
+        await fetch(`${API_URL}/tasks/${taskId}/move`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ newColumnId: this.id })
+        });
+        
+        this.querySelector('.tasks').append(draggedTask);
+      } catch (error) {
+        console.error('Error moving task:', error);
+      }
+    }
+  }
+};
+
+// Initialize when DOM loads
+document.addEventListener('DOMContentLoaded', () => {
+  loadTasks();
+  document.getElementById('add-task-btn').onclick = addTask;
+  setupDragHandlers();
+});
