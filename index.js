@@ -1,62 +1,108 @@
 const API_URL = 'http://localhost:3001/api';
 
-// Define allowed task transitions between columns
+// Enhanced task transitions with colors and restrictions
 const Tasks = {
-  todo: ['in-progress'],
-  'in-progress': ['blocked', 'done'],
-  blocked: ['in-progress'],
-  done: []
+  todo: { 
+    transitions: ['in-progress'],
+    color: '#f0f0f0' 
+  },
+  'in-progress': { 
+    transitions: ['blocked', 'done'],
+    color: '#fff3cd' 
+  },
+  blocked: { 
+    transitions: ['in-progress'],
+    color: '#f8d7da' 
+  },
+  done: { 
+    transitions: [],
+    color: '#d4edda' 
+  }
 };
 
 let draggedTask = null;
 
-// Load tasks from database when page loads
+// Load tasks with animation
 async function loadTasks() {
   try {
+    showLoader();
     const response = await fetch(`${API_URL}/tasks`);
     const tasks = await response.json();
     
-    // Clear existing tasks
     document.querySelectorAll('.tasks').forEach(container => {
       container.innerHTML = '';
     });
     
-    // Render tasks
-    tasks.forEach(task => {
-      renderTask(task.title, task.column_id, task.id);
+    tasks.forEach((task, index) => {
+      setTimeout(() => {
+        renderTask(task.title, task.column_id, task.id);
+      }, index * 100); // Staggered animation
     });
   } catch (error) {
-    console.error('Error loading tasks:', error);
+    showError('Failed to load tasks');
+  } finally {
+    hideLoader();
   }
 }
 
-// Render a single task element
+// Enhanced task rendering with colors and animations
 function renderTask(title, columnId, taskId) {
   const task = document.createElement('div');
   task.className = 'task';
   task.draggable = true;
   task.textContent = title;
   task.dataset.id = taskId;
+  task.style.backgroundColor = Tasks[columnId].color;
+  task.style.transition = 'all 0.3s ease';
 
   task.ondragstart = function() {
     draggedTask = this;
     this.style.opacity = '0.4';
+    this.style.transform = 'rotate(3deg)';
   };
 
   task.ondragend = function() {
-    draggedTask = null;
     this.style.opacity = '1';
+    this.style.transform = 'rotate(0deg)';
   };
+
+  // Add delete button
+  const deleteBtn = document.createElement('span');
+  deleteBtn.innerHTML = '×';
+  deleteBtn.className = 'delete-task';
+  deleteBtn.onclick = async (e) => {
+    e.stopPropagation();
+    if (confirm('Delete this task?')) {
+      await deleteTask(taskId);
+    }
+  };
+  task.appendChild(deleteBtn);
 
   document.querySelector(`#${columnId} .tasks`).append(task);
 }
 
-// Add new task to database
+// Delete task functionality
+async function deleteTask(taskId) {
+  try {
+    await fetch(`${API_URL}/tasks/${taskId}`, {
+      method: 'DELETE'
+    });
+    document.querySelector(`.task[data-id="${taskId}"]`).remove();
+  } catch (error) {
+    showError('Failed to delete task');
+  }
+}
+
+// Enhanced add task with input validation
 async function addTask() {
   const input = document.getElementById('task-input');
   const taskText = input.value.trim();
 
-  if (!taskText) return alert('Please enter a task!');
+  if (!taskText) {
+    showError('Please enter a task!');
+    input.focus();
+    return;
+  }
 
   try {
     const response = await fetch(`${API_URL}/tasks`, {
@@ -68,71 +114,99 @@ async function addTask() {
     const newTask = await response.json();
     renderTask(taskText, 'todo', newTask.id);
     input.value = '';
+    input.focus();
   } catch (error) {
-    console.error('Error adding task:', error);
-    alert('Failed to add task. Please try again.');
+    showError('Failed to add task');
   }
 }
 
-// Set up drag-and-drop event handlers
+// Enhanced drag-and-drop with visual feedback
 function setupDragHandlers() {
-  const dragEvents = ['dragover', 'dragenter', 'dragleave', 'drop'];
-  
   document.querySelectorAll('.column').forEach(column => {
-    dragEvents.forEach(eventType => {
-      column.addEventListener(eventType, function(event) {
-        columnHandlers[eventType].call(this, event);
-      });
+    column.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      if (draggedTask) {
+        const fromColumn = draggedTask.parentElement.parentElement.id;
+        if (Tasks[fromColumn].transitions.includes(column.id)) {
+          column.style.boxShadow = '0 0 10px rgba(0,255,0,0.5)';
+        } else {
+          column.style.boxShadow = '0 0 10px rgba(255,0,0,0.5)';
+        }
+      }
     });
-  });
-}
 
-// Column event handlers for drag-and-drop
-const columnHandlers = {
-  dragover: function(e) {
-    e.preventDefault(); 
-  },
+    column.addEventListener('dragleave', () => {
+      column.style.boxShadow = 'none';
+    });
 
-  dragenter: function(e) {
-    if (!draggedTask) return;
-    
-    const originalColumn = draggedTask.parentElement.parentElement.id;
-    
-    if (Tasks[originalColumn].includes(this.id)) {
-      this.classList.add('allowed-drop');
-    }
-  },
+    column.addEventListener('drop', async (e) => {
+      e.preventDefault();
+      column.style.boxShadow = 'none';
+      
+      if (!draggedTask) return;
 
-  dragleave: function(e) {
-    this.classList.remove('allowed-drop');
-  },
+      const fromColumn = draggedTask.parentElement.parentElement.id;
+      if (!Tasks[fromColumn].transitions.includes(column.id)) return;
 
-  drop: async function(e) {
-    e.preventDefault();
-    this.classList.remove('allowed-drop');
-    
-    const originalColumn = draggedTask.parentElement.parentElement.id;
-    const taskId = draggedTask.dataset.id;
-    
-    if (Tasks[originalColumn].includes(this.id)) {
+      const taskId = draggedTask.dataset.id;
       try {
         await fetch(`${API_URL}/tasks/${taskId}/move`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ newColumnId: this.id })
+          body: JSON.stringify({ newColumnId: column.id })
         });
         
-        this.querySelector('.tasks').append(draggedTask);
+        // Update visual appearance
+        draggedTask.style.backgroundColor = Tasks[column.id].color;
+        column.querySelector('.tasks').append(draggedTask);
+        
+        // Visual confirmation
+        column.style.transform = 'scale(1.02)';
+        setTimeout(() => {
+          column.style.transform = 'scale(1)';
+        }, 200);
       } catch (error) {
-        console.error('Error moving task:', error);
-        alert('Failed to move task. Please try again.');
+        showError('Failed to move task');
       }
-    }
-  }
-};
+    });
+  });
+}
 
-// Initialize the application when DOM loads
+// UI Helpers
+function showLoader() {
+  document.getElementById('loading').style.display = 'block';
+}
+
+function hideLoader() {
+  document.getElementById('loading').style.display = 'none';
+}
+
+function showError(message) {
+  const errorEl = document.getElementById('error-message');
+  errorEl.textContent = message;
+  errorEl.style.display = 'block';
+  setTimeout(() => {
+    errorEl.style.display = 'none';
+  }, 3000);
+}
+
+// Initialize with additional UI elements
 document.addEventListener('DOMContentLoaded', () => {
+  // Add loader and error elements if they don't exist
+  if (!document.getElementById('loading')) {
+    const loader = document.createElement('div');
+    loader.id = 'loading';
+    loader.style.display = 'none';
+    document.body.appendChild(loader);
+  }
+  
+  if (!document.getElementById('error-message')) {
+    const errorEl = document.createElement('div');
+    errorEl.id = 'error-message';
+    errorEl.style.display = 'none';
+    document.body.appendChild(errorEl);
+  }
+
   loadTasks();
   document.getElementById('add-task-btn').onclick = addTask;
   setupDragHandlers();
