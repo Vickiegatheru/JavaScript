@@ -1,6 +1,38 @@
-const API_URL = 'http://localhost:3001/api';
 
-// Enhanced task transitions with colors and restrictions
+const API_URL = window.location.hostname === 'localhost' 
+  ? 'http://localhost:3001/api' 
+  : '/api';
+
+
+async function loadTasks() {
+  try {
+    showLoader();
+    const response = await fetch(`${API_URL}/tasks`);
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    
+    const tasks = await response.json();
+    console.log('Loaded tasks:', tasks); // Debug log
+    
+    document.querySelectorAll('.tasks').forEach(container => {
+      container.innerHTML = '';
+    });
+    
+    tasks.forEach(task => {
+      renderTask(task.title, task.column_id, task.id);
+    });
+  } catch (error) {
+    console.error('Full error:', error);
+    showError(`Failed to load tasks. Please ensure:<br>
+      1. The server is running (node server.js)<br>
+      2. No CORS errors in browser console (F12)`);
+  } finally {
+    hideLoader();
+  }
+}
+
 const Tasks = {
   todo: { 
     transitions: ['in-progress'],
@@ -22,7 +54,6 @@ const Tasks = {
 
 let draggedTask = null;
 
-// Load tasks with animation
 async function loadTasks() {
   try {
     showLoader();
@@ -36,7 +67,7 @@ async function loadTasks() {
     tasks.forEach((task, index) => {
       setTimeout(() => {
         renderTask(task.title, task.column_id, task.id);
-      }, index * 100); // Staggered animation
+      }, index * 100); 
     });
   } catch (error) {
     showError('Failed to load tasks');
@@ -45,7 +76,6 @@ async function loadTasks() {
   }
 }
 
-// Enhanced task rendering with colors and animations
 function renderTask(title, columnId, taskId) {
   const task = document.createElement('div');
   task.className = 'task';
@@ -66,7 +96,6 @@ function renderTask(title, columnId, taskId) {
     this.style.transform = 'rotate(0deg)';
   };
 
-  // Add delete button
   const deleteBtn = document.createElement('span');
   deleteBtn.innerHTML = '×';
   deleteBtn.className = 'delete-task';
@@ -81,7 +110,6 @@ function renderTask(title, columnId, taskId) {
   document.querySelector(`#${columnId} .tasks`).append(task);
 }
 
-// Delete task functionality
 async function deleteTask(taskId) {
   try {
     await fetch(`${API_URL}/tasks/${taskId}`, {
@@ -93,7 +121,6 @@ async function deleteTask(taskId) {
   }
 }
 
-// Enhanced add task with input validation
 async function addTask() {
   const input = document.getElementById('task-input');
   const taskText = input.value.trim();
@@ -120,7 +147,6 @@ async function addTask() {
   }
 }
 
-// Enhanced drag-and-drop with visual feedback
 function setupDragHandlers() {
   document.querySelectorAll('.column').forEach(column => {
     column.addEventListener('dragover', (e) => {
@@ -156,11 +182,9 @@ function setupDragHandlers() {
           body: JSON.stringify({ newColumnId: column.id })
         });
         
-        // Update visual appearance
         draggedTask.style.backgroundColor = Tasks[column.id].color;
         column.querySelector('.tasks').append(draggedTask);
         
-        // Visual confirmation
         column.style.transform = 'scale(1.02)';
         setTimeout(() => {
           column.style.transform = 'scale(1)';
@@ -172,7 +196,6 @@ function setupDragHandlers() {
   });
 }
 
-// UI Helpers
 function showLoader() {
   document.getElementById('loading').style.display = 'block';
 }
@@ -190,9 +213,7 @@ function showError(message) {
   }, 3000);
 }
 
-// Initialize with additional UI elements
 document.addEventListener('DOMContentLoaded', () => {
-  // Add loader and error elements if they don't exist
   if (!document.getElementById('loading')) {
     const loader = document.createElement('div');
     loader.id = 'loading';
