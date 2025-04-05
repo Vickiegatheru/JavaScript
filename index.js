@@ -1,234 +1,114 @@
-
-const API_URL = window.location.hostname === 'localhost' 
-  ? 'http://localhost:3001/api' 
-  : '/api';
-
-
-async function loadTasks() {
-  try {
-    showLoader();
-    const response = await fetch(`${API_URL}/tasks`);
-    
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-    
-    const tasks = await response.json();
-    console.log('Loaded tasks:', tasks); // Debug log
-    
-    document.querySelectorAll('.tasks').forEach(container => {
-      container.innerHTML = '';
-    });
-    
-    tasks.forEach(task => {
-      renderTask(task.title, task.column_id, task.id);
-    });
-  } catch (error) {
-    console.error('Full error:', error);
-    showError(`Failed to load tasks. Please ensure:<br>
-      1. The server is running (node server.js)<br>
-      2. No CORS errors in browser console (F12)`);
-  } finally {
-    hideLoader();
-  }
-}
-
 const Tasks = {
-  todo: { 
-    transitions: ['in-progress'],
-    color: '#f0f0f0' 
-  },
-  'in-progress': { 
-    transitions: ['blocked', 'done'],
-    color: '#fff3cd' 
-  },
-  blocked: { 
-    transitions: ['in-progress'],
-    color: '#f8d7da' 
-  },
-  done: { 
-    transitions: [],
-    color: '#d4edda' 
-  }
+  todo: ['in-progress'],
+  'in-progress': ['blocked', 'done'],
+  blocked: ['in-progress'],
+  done: []
 };
 
 let draggedTask = null;
 
-async function loadTasks() {
-  try {
-    showLoader();
-    const response = await fetch(`${API_URL}/tasks`);
-    const tasks = await response.json();
-    
-    document.querySelectorAll('.tasks').forEach(container => {
-      container.innerHTML = '';
-    });
-    
-    tasks.forEach((task, index) => {
-      setTimeout(() => {
-        renderTask(task.title, task.column_id, task.id);
-      }, index * 100); 
-    });
-  } catch (error) {
-    showError('Failed to load tasks');
-  } finally {
-    hideLoader();
-  }
-}
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('add-task-btn').onclick = addTask;
 
-function renderTask(title, columnId, taskId) {
-  const task = document.createElement('div');
-  task.className = 'task';
-  task.draggable = true;
-  task.textContent = title;
-  task.dataset.id = taskId;
-  task.style.backgroundColor = Tasks[columnId].color;
-  task.style.transition = 'all 0.3s ease';
+  fetch('http://localhost:3001/api/tasks')
+    .then(res => res.json())
+    .then(tasks => {
+      tasks.forEach(t => {
+        const task = createTaskElement(t.title, t.id);
+        document.querySelector(`#${t.column_id} .tasks`).append(task);
+      });
+    })
+    .catch(() => alert('Failed to load tasks'));
 
-  task.ondragstart = function() {
-    draggedTask = this;
-    this.style.opacity = '0.4';
-    this.style.transform = 'rotate(3deg)';
-  };
-
-  task.ondragend = function() {
-    this.style.opacity = '1';
-    this.style.transform = 'rotate(0deg)';
-  };
-
-  const deleteBtn = document.createElement('span');
-  deleteBtn.innerHTML = '×';
-  deleteBtn.className = 'delete-task';
-  deleteBtn.onclick = async (e) => {
-    e.stopPropagation();
-    if (confirm('Delete this task?')) {
-      await deleteTask(taskId);
-    }
-  };
-  task.appendChild(deleteBtn);
-
-  document.querySelector(`#${columnId} .tasks`).append(task);
-}
-
-async function deleteTask(taskId) {
-  try {
-    await fetch(`${API_URL}/tasks/${taskId}`, {
-      method: 'DELETE'
-    });
-    document.querySelector(`.task[data-id="${taskId}"]`).remove();
-  } catch (error) {
-    showError('Failed to delete task');
-  }
-}
-
-async function addTask() {
-  const input = document.getElementById('task-input');
-  const taskText = input.value.trim();
-
-  if (!taskText) {
-    showError('Please enter a task!');
-    input.focus();
-    return;
-  }
-
-  try {
-    const response = await fetch(`${API_URL}/tasks`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ title: taskText })
-    });
-    
-    const newTask = await response.json();
-    renderTask(taskText, 'todo', newTask.id);
-    input.value = '';
-    input.focus();
-  } catch (error) {
-    showError('Failed to add task');
-  }
-}
+  setupDragHandlers();
+});
 
 function setupDragHandlers() {
+  const dragEvents = ['dragover', 'dragenter', 'dragleave', 'drop'];
+
   document.querySelectorAll('.column').forEach(column => {
-    column.addEventListener('dragover', (e) => {
-      e.preventDefault();
-      if (draggedTask) {
-        const fromColumn = draggedTask.parentElement.parentElement.id;
-        if (Tasks[fromColumn].transitions.includes(column.id)) {
-          column.style.boxShadow = '0 0 10px rgba(0,255,0,0.5)';
-        } else {
-          column.style.boxShadow = '0 0 10px rgba(255,0,0,0.5)';
-        }
-      }
-    });
-
-    column.addEventListener('dragleave', () => {
-      column.style.boxShadow = 'none';
-    });
-
-    column.addEventListener('drop', async (e) => {
-      e.preventDefault();
-      column.style.boxShadow = 'none';
-      
-      if (!draggedTask) return;
-
-      const fromColumn = draggedTask.parentElement.parentElement.id;
-      if (!Tasks[fromColumn].transitions.includes(column.id)) return;
-
-      const taskId = draggedTask.dataset.id;
-      try {
-        await fetch(`${API_URL}/tasks/${taskId}/move`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ newColumnId: column.id })
-        });
-        
-        draggedTask.style.backgroundColor = Tasks[column.id].color;
-        column.querySelector('.tasks').append(draggedTask);
-        
-        column.style.transform = 'scale(1.02)';
-        setTimeout(() => {
-          column.style.transform = 'scale(1)';
-        }, 200);
-      } catch (error) {
-        showError('Failed to move task');
-      }
+    dragEvents.forEach(eventType => {
+      column.addEventListener(eventType, function (event) {
+        columnHandlers[eventType].call(this, event);
+      });
     });
   });
 }
 
-function showLoader() {
-  document.getElementById('loading').style.display = 'block';
-}
+const columnHandlers = {
+  dragover: function (e) {
+    e.preventDefault();
+  },
 
-function hideLoader() {
-  document.getElementById('loading').style.display = 'none';
-}
+  dragenter: function (e) {
+    if (!draggedTask) return;
 
-function showError(message) {
-  const errorEl = document.getElementById('error-message');
-  errorEl.textContent = message;
-  errorEl.style.display = 'block';
-  setTimeout(() => {
-    errorEl.style.display = 'none';
-  }, 3000);
-}
+    const originalColumn = draggedTask.parentElement.parentElement.id;
 
-document.addEventListener('DOMContentLoaded', () => {
-  if (!document.getElementById('loading')) {
-    const loader = document.createElement('div');
-    loader.id = 'loading';
-    loader.style.display = 'none';
-    document.body.appendChild(loader);
+    if (Tasks[originalColumn].includes(this.id)) {
+      this.classList.add('allowed-drop');
+    }
+  },
+
+  dragleave: function (e) {
+    this.classList.remove('allowed-drop');
+  },
+
+  drop: function (e) {
+    this.classList.remove('allowed-drop');
+
+    const originalColumn = draggedTask.parentElement.parentElement.id;
+
+    if (Tasks[originalColumn].includes(this.id)) {
+      this.querySelector('.tasks').append(draggedTask);
+
+      const taskId = draggedTask.dataset.id;
+
+      fetch(`http://localhost:3001/api/tasks/${taskId}/move`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ newColumnId: this.id })
+      }).catch(() => alert('Failed to move task'));
+    }
   }
-  
-  if (!document.getElementById('error-message')) {
-    const errorEl = document.createElement('div');
-    errorEl.id = 'error-message';
-    errorEl.style.display = 'none';
-    document.body.appendChild(errorEl);
-  }
+};
 
-  loadTasks();
-  document.getElementById('add-task-btn').onclick = addTask;
-  setupDragHandlers();
-});
+function addTask() {
+  const input = document.getElementById('task-input');
+  const taskText = input.value.trim();
+
+  if (!taskText) return alert('Please enter a task!');
+
+  fetch('http://localhost:3001/api/tasks', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ title: taskText })
+  })
+    .then(res => res.json())
+    .then(data => {
+      const task = createTaskElement(data.title, data.id);
+      document.querySelector('#todo .tasks').append(task);
+      input.value = '';
+    })
+    .catch(() => alert('Failed to add task'));
+}
+
+function createTaskElement(title, id) {
+  const task = document.createElement('div');
+  task.className = 'task';
+  task.draggable = true;
+  task.textContent = title;
+  task.dataset.id = id;
+
+  task.ondragstart = function () {
+    draggedTask = this;
+    this.style.opacity = '0.4';
+  };
+
+  task.ondragend = function () {
+    draggedTask = null;
+    this.style.opacity = '1';
+  };
+
+  return task;
+}
